@@ -69,11 +69,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
   // AI模型选项
   const aiModels = [
-    'Qwen/Qwen2.5-7B-Instruct',
-    'Qwen/Qwen2.5-14B-Instruct',
-    'deepseek-ai/DeepSeek-V2.5',
-    'THUDM/glm-4-9b-chat',
-    '01-ai/Yi-1.5-9B-Chat-16K'
+    'glm-4.7-flash'
   ];
 
   // 星期选项
@@ -329,7 +325,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={aiEndpoint}
                       onChange={(e) => setAiEndpoint(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                      placeholder="https://api.siliconflow.cn/v1/chat/completions"
+                      placeholder="https://open.bigmodel.cn/api/paas/v4/chat/completions"
                     />
                   </div>
 

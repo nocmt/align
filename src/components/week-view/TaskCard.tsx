@@ -215,7 +215,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       ref={drag}
       className={`relative p-3 rounded-lg border-2 cursor-move transition-all duration-200 ${
         isDragging ? 'opacity-50 scale-95' : 'opacity-100 hover:shadow-lg'
-      } ${priorityConfig.color} ${priorityConfig.borderColor}`}
+      } bg-white ${priorityConfig.borderColor}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleEdit}

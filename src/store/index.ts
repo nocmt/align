@@ -132,7 +132,7 @@ class AIService {
             }
           ],
           temperature: 0.7,
-          max_tokens: 1000
+          // max_tokens: 2000
         })
       });
 
@@ -160,37 +160,61 @@ class AIService {
    */
   private parseAIResponse(content: string, feature: AIRequest['feature']): AIResponse['data'] {
     try {
-      // 尝试解析JSON响应
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      // 1. 尝试移除 Markdown 代码块标记
+      let cleanContent = content.trim();
+      // 移除开头的 ```json 或 ```
+      cleanContent = cleanContent.replace(/^```(json)?\s*/i, '');
+      // 移除结尾的 ```
+      cleanContent = cleanContent.replace(/\s*```$/, '');
+
+      // 2. 尝试提取 JSON 对象
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        
-        switch (feature) {
-          case 'parse':
-            return {
-              parsedTask: this.normalizeParsedTask(parsed)
-            };
-          case 'estimate':
-            return {
-              timeEstimate: this.parseTimeEstimate(parsed)
-            };
-          case 'schedule':
-            return {
-              suggestedSchedule: this.parseSuggestedSchedule(parsed)
-            };
-          case 'suggest':
-            return {
-              dailySuggestion: content
-            };
-          case 'analyze':
-            return {
-              progressAnalysis: this.parseProgressAnalysis(parsed)
-            };
-          default:
-            return {};
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          switch (feature) {
+            case 'parse':
+              return {
+                parsedTask: this.normalizeParsedTask(parsed)
+              };
+            case 'estimate':
+              return {
+                timeEstimate: this.parseTimeEstimate(parsed)
+              };
+            case 'schedule':
+              return {
+                suggestedSchedule: this.parseSuggestedSchedule(parsed)
+              };
+            case 'suggest':
+              return {
+                dailySuggestion: content // 建议通常是文本，保留原始内容或解析后的内容
+              };
+            case 'analyze':
+              return {
+                progressAnalysis: this.parseProgressAnalysis(parsed)
+              };
+            default:
+              return {};
+          }
+        } catch (e) {
+          console.warn('JSON parse failed for matched string, trying full content fallback', e);
         }
       }
       
+      // 如果上述解析失败，且内容本身看起来像 JSON
+      try {
+        const parsed = JSON.parse(cleanContent);
+        // ... 重复 switch 逻辑或者提取公共方法 ...
+        // 为简化，这里仅对 suggest 做非 JSON 处理，其他尝试再次解析
+        if (feature === 'suggest') {
+           return { dailySuggestion: content };
+        }
+      } catch (e) {
+        // ignore
+      }
+
       // 如果不是JSON，根据功能类型处理
       if (feature === 'suggest') {
         return { dailySuggestion: content };
@@ -207,6 +231,14 @@ class AIService {
    * 规范化解析的任务
    */
   private normalizeParsedTask(parsed: any): Partial<Task> {
+    const subtasks = Array.isArray(parsed.subtasks) ? parsed.subtasks.map((st: any, index: number) => ({
+      id: generateId() + '-' + index,
+      title: st.title || '',
+      status: 'not-started',
+      estimatedDuration: 30,
+      order: index
+    })) : [];
+
     return {
       title: parsed.title || '',
       description: parsed.description,
@@ -214,7 +246,8 @@ class AIService {
       endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
       estimatedDuration: parsed.estimatedDuration ? Number(parsed.estimatedDuration) : undefined,
       category: this.validateCategory(parsed.category),
-      priority: this.validatePriority(parsed.priority)
+      priority: this.validatePriority(parsed.priority),
+      subtasks
     };
   }
 
@@ -302,15 +335,15 @@ export const useAppStore = create<AppStore>()(
       selectedCategory: 'all',
       aiConfig: {
         id: 'default',
-        apiEndpoint: 'https://api.siliconflow.cn/v1/chat/completions',
+        apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
         apiKey: '',
-        model: 'Qwen/Qwen2.5-7B-Instruct',
+        model: 'glm-4.7',
         enabledFeatures: {
           naturalLanguageParse: true,
           timeEstimation: true,
-          autoSchedule: false,
-          dailySuggestion: false,
-          progressAnalysis: false
+          autoSchedule: true,
+          dailySuggestion: true,
+          progressAnalysis: true
         },
         healthReminders: {
           waterReminder: true,
@@ -434,10 +467,9 @@ export const useAppStore = create<AppStore>()(
           
           await db.addTask(newTask);
           set(state => ({ tasks: [...state.tasks, newTask] }));
-          toast.success('任务添加成功');
         } catch (error) {
           console.error('【任务管理】添加任务失败:', error);
-          toast.error('添加任务失败');
+          throw error;
         }
       },
 
@@ -449,10 +481,9 @@ export const useAppStore = create<AppStore>()(
               task.id === id ? { ...task, ...updates } : task
             )
           }));
-          toast.success('任务更新成功');
         } catch (error) {
           console.error('【任务管理】更新任务失败:', error);
-          toast.error('更新任务失败');
+          throw error;
         }
       },
 
@@ -462,10 +493,9 @@ export const useAppStore = create<AppStore>()(
           set(state => ({
             tasks: state.tasks.filter(task => task.id !== id)
           }));
-          toast.success('任务删除成功');
         } catch (error) {
           console.error('【任务管理】删除任务失败:', error);
-          toast.error('删除任务失败');
+          throw error;
         }
       },
 
@@ -522,18 +552,37 @@ export const useAppStore = create<AppStore>()(
 
         set({ isAIProcessing: true });
         try {
+          const now = new Date();
+          const todayStr = now.toLocaleString('zh-CN', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: 'numeric', 
+            minute: 'numeric' 
+          });
+
           const prompt = `解析以下任务描述，提取任务的关键信息：
 输入："${input}"
+当前时间：${todayStr}
+
+请遵循以下规则：
+1. description 字段 = 保留关键信息 精简后的输入原文
+2. 如果输入中包含 "\n-" 符号列表，请将其解析为 subtasks。
 
 请返回JSON格式：
 {
   "title": "任务标题",
-  "description": "详细描述",
-  "startTime": "开始时间（ISO格式）",
-  "endTime": "结束时间（ISO格式）",
+  "description": "格式化后的描述",
+  "startTime": "开始时间（YYYY-MM-DD HH:mm格式）",
+  "endTime": "结束时间（YYYY-MM-DD HH:mm格式）",
   "estimatedDuration": "预估时长（分钟）",
   "category": "任务类别（work/study/health/life/other）",
-  "priority": "优先级（urgent-important/urgent-unimportant/important-not-urgent/not-important-not-urgent）"
+  "priority": "优先级（urgent-important/urgent-unimportant/important-not-urgent/not-important-not-urgent）",
+  "subtasks": [
+    { "title": "子任务1" },
+    { "title": "子任务2" }
+  ]
 }`;
 
           const response = await aiService.sendRequest({
@@ -542,16 +591,13 @@ export const useAppStore = create<AppStore>()(
           });
 
           if (response.success && response.data?.parsedTask) {
-            toast.success('AI解析成功');
             return response.data.parsedTask;
           } else {
-            toast.error(response.error || 'AI解析失败');
-            return {};
+            throw new Error(response.error || 'AI解析失败');
           }
         } catch (error) {
           console.error('【AI解析】失败:', error);
-          toast.error('AI解析失败');
-          return {};
+          throw error;
         } finally {
           set({ isAIProcessing: false });
         }
@@ -677,7 +723,7 @@ export const useAppStore = create<AppStore>()(
           // 同步更新 AI Service 的配置
           aiService.setConfig(newConfig);
           
-          toast.success('AI配置更新成功');
+          // toast.success('AI配置更新成功');
         } catch (error) {
           console.error('【AI配置】更新失败:', error);
           toast.error('AI配置更新失败');

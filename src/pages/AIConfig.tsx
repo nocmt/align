@@ -19,13 +19,16 @@ const AIConfig: React.FC = () => {
     enabledFeatures: { ...aiConfig.enabledFeatures },
     healthReminders: { ...aiConfig.healthReminders }
   });
+  const [isTesting, setIsTesting] = React.useState(false);
 
   const handleSave = () => {
     updateAIConfig(formData);
     toast.success('AI配置已保存');
+    navigate(-1);
   };
 
   const handleTestConnection = async () => {
+    setIsTesting(true);
     try {
       const response = await fetch(formData.apiEndpoint, {
         method: 'POST',
@@ -47,13 +50,14 @@ const AIConfig: React.FC = () => {
       }
     } catch (error) {
       toast.error('API连接测试失败：' + (error as Error).message);
+    } finally {
+      setIsTesting(false);
     }
   };
 
   const models = [
-    { value: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', label: 'DeepSeek-R1-Distill-Qwen-7B' },
-    { value: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B', label: 'DeepSeek-R1-0528-Qwen3-8B' },
-    { value: 'Qwen/Qwen2.5-7B-Instruct', label: 'Qwen2.5-7B-Instruct' }
+    { value: 'glm-4.7', label: 'GLM-4.7' },
+    { value: 'glm-4.7-flash', label: 'GLM-4.7-Flash' }
   ];
 
   return (
@@ -102,10 +106,10 @@ const AIConfig: React.FC = () => {
                   value={formData.apiEndpoint}
                   onChange={(e) => setFormData(prev => ({ ...prev, apiEndpoint: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900 placeholder-gray-400"
-                  placeholder="https://api.siliconflow.cn/v1/chat/completions"
+                  placeholder="https://open.bigmodel.cn/api/paas/v4/chat/completions"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  默认为硅基流动API，支持OpenAI兼容格式
+                  默认为智谱AI API，支持OpenAI兼容格式
                 </p>
               </div>
               
@@ -118,7 +122,7 @@ const AIConfig: React.FC = () => {
                   value={formData.apiKey}
                   onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900 placeholder-gray-400"
-                  placeholder="sk-..."
+                  placeholder="..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   您的API密钥将安全地存储在本地浏览器中
@@ -131,6 +135,7 @@ const AIConfig: React.FC = () => {
                 </label>
                 <select
                   value={formData.model}
+                  defaultValue={models[1].value}
                   onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900"
                 >
@@ -144,10 +149,15 @@ const AIConfig: React.FC = () => {
               
               <button
                 onClick={handleTestConnection}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+                disabled={isTesting}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <TestTube className="w-4 h-4" />
-                <span>测试连接</span>
+                {isTesting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-500 border-t-transparent" />
+                ) : (
+                  <TestTube className="w-4 h-4" />
+                )}
+                <span>{isTesting ? '测试中...' : '测试连接'}</span>
               </button>
             </div>
           </div>

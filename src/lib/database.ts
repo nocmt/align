@@ -55,9 +55,9 @@ export class AlignDatabase extends Dexie {
       if (aiConfigCount === 0) {
         await this.aiConfig.add({
           id: 'default',
-          apiEndpoint: 'https://api.siliconflow.cn/v1/chat/completions',
+          apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
           apiKey: '',
-          model: 'Qwen/Qwen2.5-7B-Instruct',
+          model: 'glm-4.7-flash',
           enabledFeatures: {
             naturalLanguageParse: true,
             timeEstimation: true,
