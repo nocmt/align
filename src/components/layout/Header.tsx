@@ -33,25 +33,26 @@ const Header: React.FC<HeaderProps> = ({ currentTime }) => {
     <header className="bg-white border-b border-gray-100 px-6 py-4">
       <div className="flex items-center justify-between">
         {/* 左侧：菜单和应用信息 */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4 md:space-x-6">
           <button
             onClick={toggleSidebar}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900"
+            className="hidden p-2 -ml-2 rounded-lg hover:bg-gray-50 transition-colors text-gray-500 hover:text-gray-900"
           >
             <Menu className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 md:space-x-4">
+            <img src="/logo.png" alt="Align Logo" className="w-8 h-8 rounded-lg" />
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">Align</h1>
-            <div className="h-4 w-px bg-gray-200" />
-            <span className="text-sm text-gray-500 font-medium">
+            <div className="hidden md:block h-4 w-px bg-gray-200" />
+            <span className="hidden md:inline text-sm text-gray-500 font-medium">
               {format(currentTime, 'M月d日 EEEE', { locale: zhCN })}
             </span>
           </div>
         </div>
 
-        {/* 中间：周导航 */}
-        <div className="flex items-center bg-gray-50 rounded-lg p-1">
+        {/* 中间：周导航 - 移动端隐藏 */}
+        <div className="hidden md:flex items-center bg-gray-50 rounded-lg p-1">
           <button
             onClick={() => navigateWeek(-1)}
             className="p-1.5 rounded-md hover:bg-white hover:shadow-sm transition-all text-gray-500 hover:text-gray-900"
@@ -74,16 +75,16 @@ const Header: React.FC<HeaderProps> = ({ currentTime }) => {
         </div>
 
         {/* 右侧：快速操作 */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 md:space-x-3">
           <button
             onClick={() => openModal('create_task', { startTime: new Date() })}
-            className="flex items-center space-x-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-all shadow-sm hover:shadow active:scale-95"
+            className="hidden md:flex items-center space-x-2 px-4 py-2 bg-black hover:bg-gray-800 text-white rounded-lg transition-all shadow-sm hover:shadow active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">新建任务</span>
           </button>
           
-          <div className="h-6 w-px bg-gray-200 mx-2" />
+          <div className="hidden md:block h-6 w-px bg-gray-200 mx-2" />
           
           <div className="flex items-center space-x-1">
             <button
@@ -96,7 +97,7 @@ const Header: React.FC<HeaderProps> = ({ currentTime }) => {
             
             <button
               onClick={() => navigate('/analytics')}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900"
+              className="hidden md:block p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900"
               title="数据分析"
             >
               <BarChart3 className="w-5 h-5" />

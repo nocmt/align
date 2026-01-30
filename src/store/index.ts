@@ -40,6 +40,8 @@ interface AppStore extends AppState {
   setSelectedView: (view: ViewType) => void;
   setSelectedCategory: (category: TaskCategory | 'all') => void;
   toggleSidebar: () => void;
+  openSidebar: () => void;
+
   navigateWeek: (direction: number) => void;
   
   // 模态框操作
@@ -320,7 +322,7 @@ export const useAppStore = create<AppStore>()(
         }
       },
       isAIProcessing: false,
-      sidebarOpen: true,
+      sidebarOpen: false,
       modalState: { isOpen: false, type: null },
       workSchedule: {
         id: 'default',
@@ -505,6 +507,7 @@ export const useAppStore = create<AppStore>()(
       setSelectedView: (view) => set({ selectedView: view }),
       setSelectedCategory: (category) => set({ selectedCategory: category }),
       toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })), 
+      openSidebar: () => set({ sidebarOpen: true }),
 
       // 模态框操作
       openModal: (type, data) => set({ modalState: { isOpen: true, type, data } }),

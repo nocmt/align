@@ -1,57 +1,91 @@
-# React + TypeScript + Vite
+# Align 🎯
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
+![React](https://img.shields.io/badge/React-18.0-blue)
+![Vite](https://img.shields.io/badge/Vite-5.0-646CFF)
+![Tailwind](https://img.shields.io/badge/Tailwind-3.0-38B2AC)
 
-Currently, two official plugins are available:
+> 💡 **精简而强大的个人任务管理工具**
+> 
+> 融合 AI 智能辅助与健康生活理念，助你保持高效与平衡。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## Expanding the ESLint configuration
+## ✨ 核心特性
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 🎯 任务管理
+- **多维度视图**：支持日视图、周视图、列表视图和看板视图，满足不同场景需求。
+- **智能分类**：工作、学习、生活、健康等多维度分类管理。
+- **拖拽交互**：直观的拖拽操作，轻松调整任务时间和状态。
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+### 🤖 AI 智能辅助
+- **自然语言交互**：直接输入"明天下午3点和产品经理开会"，AI 自动解析时间、地点和重要程度。
+- **智能建议**：基于你的习惯提供任务规划建议（即将推出）。
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 🧘 健康生活
+- **健康提醒**：内置久坐提醒、喝水提醒和视力保护提醒。
+- **平衡分析**：可视化展示工作与生活的平衡状态。
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 📱 全端适配
+- **移动端优化**：精心设计的移动端界面，支持底部导航和触摸手势。
+- **响应式布局**：在桌面、平板和手机上都能获得完美体验。
 
-export default tseslint.config({
-  extends: [
-    // other configs...
-    // Enable lint rules for React
-    reactX.configs['recommended-typescript'],
-    // Enable lint rules for React DOM
-    reactDom.configs.recommended,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+## 🚀 快速开始
+
+### 本地开发
+
+1. **克隆仓库**
+   ```bash
+   git clone https://github.com/nocmt/align.git
+   cd align
+   ```
+
+2. **安装依赖**
+   ```bash
+   npm install
+   ```
+
+3. **启动开发服务器**
+   ```bash
+   npm run dev
+   ```
+
+4. **构建生产版本**
+   ```bash
+   npm run build
+   ```
+
+## ☁️ 一键部署
+
+Align 专为个人使用设计，支持一键部署到 Vercel。
+
+### 部署步骤
+
+1. Fork 本仓库到你的 GitHub 账号。
+2. 点击下方按钮开始部署：
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnocmt%2Falign)
+
+> **注意**：点击部署按钮后，请在 Vercel 页面中将 `Repository URL` 替换为你 Fork 后的仓库地址。
+
+## 🛠️ 技术栈
+
+- **前端框架**: [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
+- **构建工具**: [Vite](https://vitejs.dev/)
+- **样式方案**: [Tailwind CSS](https://tailwindcss.com/)
+- **状态管理**: [Zustand](https://github.com/pmndrs/zustand)
+- **本地存储**: [Dexie.js](https://dexie.org/) (IndexedDB)
+- **图标库**: [Lucide React](https://lucide.dev/)
+
+## 📄 许可证
+
+本项目采用 [GPL-3.0](LICENSE) 许可证。
+
+这意味着你可以自由地使用、修改和分发本项目，但如果你分发修改后的版本，必须同样开源并采用 GPL-3.0 许可证。
+
+---
+
+<p align="center">
+  Made with ❤️ by NOCMT
+</p>

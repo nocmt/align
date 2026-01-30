@@ -1,10 +1,12 @@
 {
   "name": "align",
+  "version": "0.1.0",
+  "description": "A minimalist yet powerful personal task management tool with AI capabilities.",
+  "license": "GPL-3.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

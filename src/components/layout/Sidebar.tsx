@@ -70,7 +70,7 @@ const Sidebar: React.FC = () => {
     }
   ];
 
-  if (!sidebarOpen) return null;
+  // if (!sidebarOpen && window.innerWidth < 768) return null;
 
   return (
     <aside className="w-64 bg-gray-50/50 border-r border-gray-200 flex flex-col h-full">
