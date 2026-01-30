@@ -221,8 +221,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         toast.success('任务创建成功');
       }
 
-      onSave && onSave(taskData);
-      onClose && onClose();
+      if (onSave) onSave(taskData);
+      if (onClose) onClose();
     } catch (error) {
       console.error('保存任务失败:', error);
       toast.error('保存任务失败');
@@ -232,11 +232,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0 bg-white/80 backdrop-blur">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-gray-900 tracking-tight">
               {task ? '编辑任务' : '创建任务'}
@@ -522,8 +522,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-white/80 backdrop-blur shrink-0 flex justify-end gap-3 z-10">
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-gray-100 bg-white shrink-0 flex justify-end gap-3 z-10">
           <button
             type="button"
             onClick={onClose}

@@ -23,6 +23,19 @@ const TaskDetail: React.FC = () => {
 
   const task = tasks.find(t => t.id === id);
   
+  const [formData, setFormData] = React.useState({
+    title: task?.title ?? '',
+    description: task?.description ?? '',
+    startTime: task ? format(new Date(task.startTime), 'yyyy-MM-dd\'T\'HH:mm') : '',
+    endTime: task ? format(new Date(task.endTime), 'yyyy-MM-dd\'T\'HH:mm') : '',
+    estimatedDuration: task?.estimatedDuration ?? 0,
+    priority: task?.priority ?? 'important-not-urgent',
+    status: task?.status ?? 'planning',
+    category: task?.category ?? 'work'
+  });
+
+  const [newSubtaskTitle, setNewSubtaskTitle] = React.useState('');
+
   if (!task) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -38,19 +51,6 @@ const TaskDetail: React.FC = () => {
       </div>
     );
   }
-
-  const [formData, setFormData] = React.useState({
-    title: task.title,
-    description: task.description || '',
-    startTime: format(new Date(task.startTime), 'yyyy-MM-dd\'T\'HH:mm'),
-    endTime: format(new Date(task.endTime), 'yyyy-MM-dd\'T\'HH:mm'),
-    estimatedDuration: task.estimatedDuration,
-    priority: task.priority,
-    status: task.status,
-    category: task.category
-  });
-
-  const [newSubtaskTitle, setNewSubtaskTitle] = React.useState('');
 
   const handleSave = () => {
     const startTime = new Date(formData.startTime);
