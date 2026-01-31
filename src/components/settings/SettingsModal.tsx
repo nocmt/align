@@ -69,7 +69,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
   // AI模型选项
   const aiModels = [
-    'glm-4.7-flash'
+    'Qwen/Qwen3-8B'
   ];
 
   // 星期选项
@@ -325,7 +325,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       value={aiEndpoint}
                       onChange={(e) => setAiEndpoint(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
-                      placeholder="https://open.bigmodel.cn/api/paas/v4/chat/completions"
+                      placeholder="https://api.siliconflow.cn/v1/chat/completions"
                     />
                   </div>
 
@@ -623,7 +623,23 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
               {/* 假期设置 */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">假期设置</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  假期设置
+                  <button
+                    onClick={() => {
+                      const currentYear = new Date().getFullYear();
+                      const query = `国务院办公厅关于${currentYear}年部分节假日安排的通知`;
+                      const encodedQuery = encodeURIComponent(query);
+                      window.open(`https://www.google.com/search?q=${encodedQuery}`, '_blank');
+                    }}
+                    className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    title="查看官方假期安排"
+                  >
+                    <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

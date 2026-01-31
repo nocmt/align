@@ -47,6 +47,7 @@ export interface Task {
   completedAt?: Date;
   actualDuration?: number; // 实际用时（分钟）
   aiSuggested?: boolean; // 是否为AI建议
+  reminderMinutes?: number; // 提前N分钟提醒
 }
 
 /**
@@ -91,6 +92,14 @@ export interface WebDAVConfig {
   url: string;
   username: string;
   password?: string; // 可选，因为可能不持久化存储密码，或者加密存储
+}
+
+/**
+ * WebDAV 同步状态
+ */
+export interface WebDAVSyncState extends WebDAVConfig {
+  lastSyncTime?: Date | null;
+  dirtyMonths?: string[];
 }
 
 /**
@@ -163,7 +172,7 @@ export interface AIRequest {
     schedule: WorkSchedule;
     history: AnalyticsData[];
   };
-  feature: 'parse' | 'estimate' | 'schedule' | 'suggest' | 'analyze';
+  feature: 'parse' | 'estimate' | 'schedule' | 'suggest' | 'analyze' | 'parse_holidays';
 }
 
 /**
@@ -177,6 +186,7 @@ export interface AIResponse {
     suggestedSchedule?: Task[];
     dailySuggestion?: string;
     progressAnalysis?: AnalyticsData;
+    parsedHolidays?: { name: string; startDate: string; endDate: string; isWorkDay: boolean }[];
   };
   error?: string;
 }
@@ -208,6 +218,7 @@ export interface AppState {
   dirtyMonths: string[]; // YYYY-MM format, tracks months that need syncing
   
   // UI State
+  isInitialized: boolean;
   sidebarOpen: boolean;
   modalState: ModalState;
   

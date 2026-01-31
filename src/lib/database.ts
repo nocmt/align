@@ -12,7 +12,9 @@ import {
   Template,
   TaskStatus,
   TaskPriority,
-  TaskCategory
+  TaskCategory,
+  WebDAVConfig,
+  WebDAVSyncState
 } from '@/types';
 
 /**
@@ -23,6 +25,7 @@ export class AlignDatabase extends Dexie {
   // 数据表定义
   tasks!: Table<Task, string>;
   aiConfig!: Table<AIConfig, string>;
+  webdavConfig!: Table<WebDAVSyncState & { id: string }, string>;
   workSchedule!: Table<WorkSchedule, string>;
   analytics!: Table<AnalyticsData, string>;
   templates!: Table<Template, string>;
@@ -37,6 +40,10 @@ export class AlignDatabase extends Dexie {
       workSchedule: 'id',
       analytics: 'id, date, type',
       templates: 'id, name, type'
+    });
+
+    this.version(2).stores({
+      webdavConfig: 'id'
     });
 
     // 初始化默认数据
@@ -55,9 +62,9 @@ export class AlignDatabase extends Dexie {
       if (aiConfigCount === 0) {
         await this.aiConfig.add({
           id: 'default',
-          apiEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+          apiEndpoint: 'https://api.siliconflow.cn/v1/chat/completions',
           apiKey: '',
-          model: 'glm-4.7-flash',
+          model: 'Qwen/Qwen3-8B',
           enabledFeatures: {
             naturalLanguageParse: true,
             timeEstimation: true,
@@ -213,6 +220,44 @@ export class AlignDatabase extends Dexie {
   /**
    * AI配置相关操作
    */
+
+  /**
+   * 获取WebDAV状态
+   */
+  async getWebDAVState(): Promise<WebDAVSyncState | undefined> {
+    try {
+      const config = await this.webdavConfig.toArray();
+      if (config.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, ...rest } = config[0];
+        return rest as WebDAVSyncState;
+      }
+      return undefined;
+    } catch (error) {
+      console.error('【数据存储】获取WebDAV状态失败:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * 更新WebDAV状态 (支持部分更新)
+   */
+  async updateWebDAVState(state: Partial<WebDAVSyncState>): Promise<void> {
+    try {
+      const existingConfig = await this.webdavConfig.toArray();
+      if (existingConfig.length > 0) {
+        await this.webdavConfig.update('default', state);
+      } else {
+        // 如果不存在，必须提供完整的 WebDAVConfig 部分才能创建有效记录
+        // 这里假设调用者会保证这一点，或者我们只允许更新已存在的
+        // 但如果是首次保存配置，state 应该包含完整的 config
+        await this.webdavConfig.add({ ...(state as WebDAVSyncState), id: 'default' });
+      }
+    } catch (error) {
+      console.error('【数据存储】更新WebDAV状态失败:', error);
+      throw new Error('更新WebDAV状态失败');
+    }
+  }
 
   /**
    * 获取AI配置

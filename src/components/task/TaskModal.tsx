@@ -27,7 +27,8 @@ import {
   Coffee,
   Zap,
   Flag,
-  Circle
+  Circle,
+  Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { clsx } from 'clsx';
@@ -67,6 +68,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [priority, setPriority] = useState<TaskPriority>(task?.priority || 'important-not-urgent');
   const [status, setStatus] = useState<Task['status']>(task?.status || 'planning');
   const [subtasks, setSubtasks] = useState<SubTask[]>(task?.subtasks || []);
+  const [reminderMinutes, setReminderMinutes] = useState(task?.reminderMinutes ?? 5);
   
   // AI输入状态
   const [naturalInput, setNaturalInput] = useState('');
@@ -115,18 +117,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   const durationOptions = [15, 30, 60, 90, 120];
 
-  // Helpers
-  function getMonday(date: Date): Date {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff));
-  }
+  const reminderOptions = [
+    { value: 5, label: '5分钟' },
+    { value: 15, label: '15分钟' },
+    { value: 30, label: '30分钟' },
+    { value: 45, label: '45分钟' },
+    { value: 60, label: '1小时' },
+  ];
 
   const handleAIParse = async () => {
     if (!naturalInput.trim()) return;
 
     try {
       const parsedTask = await parseNaturalLanguage(naturalInput);
+      console.debug('【AI解析】原始解析结果:', parsedTask);
       
       if (parsedTask.title) setTitle(parsedTask.title);
       if (parsedTask.description) setDescription(parsedTask.description);
@@ -224,7 +228,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       if (onSave) onSave(taskData);
       if (onClose) onClose();
     } catch (error) {
-      console.error('保存任务失败:', error);
+      console.error('【任务管理】保存任务失败:', error);
       toast.error('保存任务失败');
     } finally {
       setIsSubmitting(false);
@@ -388,6 +392,30 @@ const TaskModal: React.FC<TaskModalProps> = ({
                           )}
                         >
                           {dur}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reminder */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <Bell className="w-3 h-3" /> 提醒 (提前)
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {reminderOptions.map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setReminderMinutes(opt.value)}
+                          className={clsx(
+                            "px-2 py-1 text-xs rounded-md border transition-all",
+                            reminderMinutes === opt.value
+                              ? "bg-black text-white border-black"
+                              : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                          )}
+                        >
+                          {opt.label}
                         </button>
                       ))}
                     </div>

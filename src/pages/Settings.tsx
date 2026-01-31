@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Download, Upload, Trash2, Calendar, Clock, MapPin, Cloud, QrCode, Scan, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Download, Upload, Trash2, Calendar, Clock, MapPin, Cloud, QrCode, Scan, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import { useAppStore } from '../store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,7 +15,8 @@ const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { 
     workSchedule, updateWorkSchedule, exportData, importData, clearAllData,
-    webdavConfig, setWebDAVConfig, syncToWebDAV, syncFromWebDAV, isSyncing, lastSyncTime
+    webdavConfig, setWebDAVConfig, syncToWebDAV, syncFromWebDAV, isSyncing, lastSyncTime,
+    parseHolidays, isAIProcessing, aiConfig
   } = useAppStore();
   
   const [formData, setFormData] = React.useState({
@@ -130,53 +131,30 @@ const Settings: React.FC = () => {
   const handleSave = () => {
     updateWorkSchedule(formData);
     toast.success('设置已保存');
+    navigate('/');
   };
 
-  const handleParseHoliday = () => {
+  const handleParseHoliday = async () => {
     if (!holidayInput.trim()) return;
 
+    if (!aiConfig.apiKey && !aiConfig.model) {
+      toast.error('请先在"AI配置"中设置API Key和模型');
+      navigate('/ai-config');
+      return;
+    }
+
     try {
-      // 解析类似"一、元旦：1月1日（周四）至3日（周六）放假调休，共3天。1月4日（周日）上班。"的格式
-      const lines = holidayInput.split('\n').filter(line => line.trim());
-      const newHolidays: typeof formData.holidays = [];
-
-      lines.forEach(line => {
-        // 简单的正则表达式提取日期
-        const dateMatches = line.match(/(\d+)月(\d+)日/g);
-        if (dateMatches && dateMatches.length >= 2) {
-          const currentYear = new Date().getFullYear();
-          const startDate = dateMatches[0];
-          const endDate = dateMatches[1];
-          
-          // 提取月份和日期
-          const startMatch = startDate.match(/(\d+)月(\d+)日/);
-          const endMatch = endDate.match(/(\d+)月(\d+)日/);
-          
-          if (startMatch && endMatch) {
-            const startMonth = parseInt(startMatch[1]);
-            const startDay = parseInt(startMatch[2]);
-            const endMonth = parseInt(endMatch[1]);
-            const endDay = parseInt(endMatch[2]);
-            
-            newHolidays.push({
-              name: line.split('：')[0].replace(/^\d+、/, '').trim(),
-              startDate: `${currentYear}-${startMonth.toString().padStart(2, '0')}-${startDay.toString().padStart(2, '0')}`,
-              endDate: `${currentYear}-${endMonth.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`,
-              isWorkDay: line.includes('上班')
-            });
-          }
-        }
-      });
-
-      if (newHolidays.length > 0) {
+      const holidays = await parseHolidays(holidayInput);
+      
+      if (holidays && holidays.length > 0) {
         setFormData(prev => ({
           ...prev,
-          holidays: [...prev.holidays, ...newHolidays]
+          holidays: [...prev.holidays, ...holidays]
         }));
-        toast.success(`成功解析${newHolidays.length}个假期`);
+        toast.success(`成功解析 ${holidays.length} 个假期信息`);
         setHolidayInput('');
       } else {
-        toast.error('未解析到有效的假期信息');
+        toast.error('未解析到有效的假期信息，请检查输入内容');
       }
     } catch (error) {
       toast.error('解析失败：' + (error as Error).message);
@@ -448,19 +426,33 @@ const Settings: React.FC = () => {
 二、春节：2月15日（农历腊月二十八、周日）至23日（农历正月初七、周一）放假调休，共9天。"
                   className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent h-32 resize-none text-gray-900"
                 />
-                <button
-                  onClick={handleParseHoliday}
-                  disabled={!holidayInput.trim()}
-                  className="mt-2 px-4 py-2 bg-black text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition-colors"
-                >
-                  解析假期
-                </button>
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={handleParseHoliday}
+                    disabled={!holidayInput.trim() || isAIProcessing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-black text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAIProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>AI解析中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>AI智能解析</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  已设置假期
-                </label>
+                {formData.holidays.length > 0 && (
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    已设置假期
+                  </label>
+                )}
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {formData.holidays.map((holiday, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-100">

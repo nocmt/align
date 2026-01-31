@@ -56,8 +56,7 @@ const AIConfig: React.FC = () => {
   };
 
   const models = [
-    { value: 'glm-4.7', label: 'GLM-4.7' },
-    { value: 'glm-4.7-flash', label: 'GLM-4.7-Flash' }
+    { value: 'Qwen/Qwen3-8B', label: 'Qwen/Qwen3-8B' }
   ];
 
   return (
@@ -106,10 +105,10 @@ const AIConfig: React.FC = () => {
                   value={formData.apiEndpoint}
                   onChange={(e) => setFormData(prev => ({ ...prev, apiEndpoint: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900 placeholder-gray-400"
-                  placeholder="https://open.bigmodel.cn/api/paas/v4/chat/completions"
+                  placeholder="https://api.siliconflow.cn/v1/chat/completions"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  默认为智谱AI API，支持OpenAI兼容格式
+                  默认为硅基流动 API，支持OpenAI兼容格式
                 </p>
               </div>
               
@@ -309,7 +308,7 @@ const AIConfig: React.FC = () => {
             </h2>
             
             <div className="space-y-3 text-sm text-gray-600">
-              <p>• 智谱AI API：注册后获取API密钥，支持多种开源模型</p>
+              <p>• 硅基流动 API：注册后获取API密钥，支持多种开源模型</p>
               <p>• 自然语言解析：输入"明天下午3点开项目会议，预计1小时"即可自动解析</p>
               <p>• 智能排程：AI会根据任务优先级、截止时间、预估时长自动安排</p>
               <p>• 健康提醒：会在任务安排中自动插入休息提醒</p>
