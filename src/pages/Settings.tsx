@@ -60,6 +60,7 @@ const Settings: React.FC = () => {
       );
       
       scanner.render((decodedText) => {
+        console.log('【QR扫描】扫描内容:', decodedText);
         try {
           const config = JSON.parse(decodedText);
           if (config.url && config.username) {
@@ -72,10 +73,12 @@ const Settings: React.FC = () => {
             scanner.clear();
             setShowScanner(false);
           } else {
-            toast.error('无效的二维码配置');
+            console.error('【QR扫描】配置结构无效:', config);
+            toast.error('无效的二维码配置：缺少 url 或 username');
           }
         } catch (e) {
-          toast.error('无法解析二维码');
+          console.error('【QR扫描】解析失败:', e);
+          toast.error('无法解析二维码：请确保扫描的是本应用生成的JSON配置');
         }
       }, (error) => {
         // console.warn(error);

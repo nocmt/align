@@ -888,15 +888,34 @@ export const useAppStore = create<AppStore>()(
       closeModal: () => set({ modalState: { isOpen: false, type: null } }),
 
       // AI操作
-      parseNaturalLanguage: async (input) => {
+      parseNaturalLanguage: async (input: string) => {
         const state = get();
-        if (!state.aiConfig.enabledFeatures.naturalLanguageParse) {
-          return {};
-        }
-
         set({ isAIProcessing: true });
+        
         try {
+          // 1. 预处理：替换相对日期关键词为具体日期
           const now = new Date();
+          const dateMap: Record<string, number> = {
+            '大前天': -3,
+            '前天': -2,
+            '昨天': -1,
+            '今天': 0,
+            '明天': 1,
+            '后天': 2,
+            '大后天': 3
+          };
+
+          let processedInput = input;
+          Object.entries(dateMap).forEach(([key, offset]) => {
+            if (processedInput.includes(key)) {
+              const targetDate = new Date(now);
+              targetDate.setDate(now.getDate() + offset);
+              const dateStr = format(targetDate, 'yyyy-MM-dd');
+              // Replace all occurrences using split/join for better compatibility
+              processedInput = processedInput.split(key).join(`${dateStr} (${key})`);
+            }
+          });
+
           const todayStr = now.toLocaleString('zh-CN', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -907,11 +926,11 @@ export const useAppStore = create<AppStore>()(
           });
 
           const prompt = `解析以下任务描述，提取任务的关键信息：
-输入："${input}"
+输入："${processedInput}"
 当前时间：${todayStr}
 
 请遵循以下规则：
-1. description 字段 = 保留关键信息 精简后的输入原文
+1. description 字段 = 保留关键信息 精简后的输入原文（请保留上述预处理后的具体日期）
 2. 如果输入中包含 "\n-" 符号列表，请将其解析为 subtasks。
 
 请返回JSON格式：

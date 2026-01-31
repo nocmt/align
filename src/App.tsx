@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import { useAppStore } from './store';
 import { useEffect } from 'react';
 import { useTaskReminder } from './hooks/useTaskReminder';
+import { useHealthReminders } from './hooks/useHealthReminders';
 
 /**
  * 主应用组件
@@ -22,6 +23,38 @@ function App() {
   
   // 启用任务提醒
   useTaskReminder();
+  // 启用健康提醒
+  useHealthReminders();
+
+  // 请求通知权限和提示白名单
+  useEffect(() => {
+    const requestPermissions = async () => {
+      if ('Notification' in window) {
+        if (Notification.permission === 'default') {
+          await Notification.requestPermission();
+        }
+        
+        if (Notification.permission === 'granted') {
+           // Check if we showed the whitelist hint
+           const hasShownHint = localStorage.getItem('whitelist_hint_shown');
+           if (!hasShownHint) {
+             toast.info('为了确保提醒正常工作', {
+               description: '请确保浏览器未将本页面自动休眠，或将其加入白名单。',
+               duration: 8000,
+               action: {
+                 label: '知道了',
+                 onClick: () => localStorage.setItem('whitelist_hint_shown', 'true')
+               }
+             });
+             // Also set it after 8s if user doesn't click
+             setTimeout(() => localStorage.setItem('whitelist_hint_shown', 'true'), 8000);
+           }
+        }
+      }
+    };
+    
+    requestPermissions();
+  }, []);
 
   // 初始化存储
   useEffect(() => {
