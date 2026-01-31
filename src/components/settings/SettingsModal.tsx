@@ -16,7 +16,6 @@ import {
   Download, 
   Upload,
   Trash2,
-  Calendar,
   AlertTriangle,
   CheckCircle,
   RefreshCw
@@ -41,7 +40,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     updateWorkSchedule, 
     exportData, 
     importData, 
-    clearAllData 
+    clearAllData,
+    syncToWebDAV
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'ai' | 'schedule' | 'data'>('ai');
@@ -113,6 +113,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         toast.error(`AI连接失败: ${response.status}`);
       }
     } catch (error) {
+      console.error('【AI配置】连接测试失败，错误:', error);
       toast.error('AI连接测试失败，请检查网络连接');
     } finally {
       setIsTestingAI(false);
@@ -135,6 +136,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       await updateAIConfig(newConfig);
       toast.success('AI配置保存成功！');
     } catch (error) {
+      console.error('【AI配置】保存失败，错误:', error);
       toast.error('AI配置保存失败');
     }
   };
@@ -155,8 +157,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       };
 
       await updateWorkSchedule(newSchedule);
+      await syncToWebDAV();
       toast.success('工作作息配置保存成功！');
     } catch (error) {
+      console.error('【工作作息】保存失败，错误:', error);
       toast.error('工作作息配置保存失败');
     }
   };
@@ -176,7 +180,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         // 匹配类似 "元旦：1月1日（周四）至3日（周六）放假调休，共3天。1月4日（周日）上班。" 的格式
         const match = line.match(/(.+?)：(\d+)月(\d+)日.*?至(\d+)月(\d+)日.*?共(\d+)天/);
         if (match) {
-          const [, name, startMonth, startDay, endMonth, endDay, days] = match;
+          const [, name, startMonth, startDay, endMonth, endDay] = match;
           const currentYear = new Date().getFullYear();
           
           parsedHolidays.push({
@@ -192,6 +196,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       setHolidayText('');
       toast.success(`成功解析 ${parsedHolidays.length} 个假期`);
     } catch (error) {
+      console.error('【假期设置】解析失败，错误:', error);
       toast.error('假期解析失败，请检查格式');
     }
   };
@@ -226,6 +231,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
       await importData(data);
       toast.success('数据导入成功！');
     } catch (error) {
+      console.error('【数据管理】导入失败，错误:', error);
       toast.error('数据导入失败，请检查文件格式');
     } finally {
       // 重置文件输入
@@ -244,6 +250,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         await clearAllData();
         toast.success('数据清除成功！');
       } catch (error) {
+        console.error('【数据管理】清除失败，错误:', error);
         toast.error('数据清除失败');
       }
     }
@@ -632,12 +639,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                       const encodedQuery = encodeURIComponent(query);
                       window.open(`https://www.google.com/search?q=${encodedQuery}`, '_blank');
                     }}
-                    className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    className="ml-auto px-3 py-1.5 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center gap-1.5"
                     title="查看官方假期安排"
                   >
-                    <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                     </svg>
+                    <span>查看官方安排</span>
                   </button>
                 </h3>
                 <div className="space-y-4">
