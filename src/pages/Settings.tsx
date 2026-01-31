@@ -175,10 +175,16 @@ const Settings: React.FC = () => {
 
   const [holidayInput, setHolidayInput] = React.useState('');
 
-  const handleSave = () => {
-    updateWorkSchedule(formData);
-    toast.success('设置已保存');
-    navigate('/');
+  const handleSave = async () => {
+    try {
+      await updateWorkSchedule(formData);
+      await syncToWebDAV();
+      toast.success('设置已保存并同步');
+      navigate('/');
+    } catch (error) {
+      console.error('【设置】保存失败:', error);
+      toast.error('保存失败');
+    }
   };
 
   const handleParseHoliday = async () => {
@@ -455,10 +461,27 @@ const Settings: React.FC = () => {
 
           {/* 假期设置 */}
           <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-            <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2 text-gray-900">
-              <MapPin className="w-5 h-5" />
-              <span>假期设置</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center space-x-2 text-gray-900">
+                <MapPin className="w-5 h-5" />
+                <span>假期设置</span>
+              </h2>
+              <button
+                onClick={() => {
+                  const currentYear = new Date().getFullYear();
+                  const query = `国务院办公厅关于${currentYear}年部分节假日安排的通知`;
+                  const encodedQuery = encodeURIComponent(query);
+                  window.open(`https://www.google.com/search?q=${encodedQuery}`, '_blank');
+                }}
+                className="px-3 py-1.5 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors flex items-center gap-1.5"
+                title="查看官方假期安排"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                <span>查看官方安排</span>
+              </button>
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -731,13 +754,13 @@ const Settings: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold mb-4 text-center text-gray-900">扫描二维码</h3>
-            <div id="reader" className="w-full h-64 bg-black rounded-lg overflow-hidden"></div>
+            <div id="reader" className="w-full h-64 bg-black rounded-lg overflow-hidden" style={{display: 'none'}}></div>
             <div id="reader-file" className="hidden"></div>
             <button
               onClick={() => scanImageInputRef?.click()}
               className="w-full mt-3 py-2 bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
             >
-              从相册识别
+              拍照或上传照片识别
             </button>
             <input
               ref={setScanImageInputRef}
