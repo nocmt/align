@@ -17,9 +17,11 @@ import {
   ViewType,
   AIRequest,
   AIResponse,
-  TaskCategory
+  TaskCategory,
+  WebDAVConfig
 } from '@/types';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 /**
  * 应用状态管理接口
@@ -70,6 +72,11 @@ interface AppStore extends AppState {
   importData: (data: any) => Promise<void>;
   clearAllData: () => Promise<void>;
   initializeStore: () => Promise<void>;
+
+  // WebDAV 操作
+  setWebDAVConfig: (config: WebDAVConfig) => void;
+  syncToWebDAV: () => Promise<void>;
+  syncFromWebDAV: () => Promise<void>;
   
   // 计算属性
   todayTasks: Task[];
@@ -355,6 +362,13 @@ export const useAppStore = create<AppStore>()(
         }
       },
       isAIProcessing: false,
+      // WebDAV 状态
+      webdavConfig: null,
+      isSyncing: false,
+      lastSyncTime: null,
+      dirtyMonths: [],
+      
+      // UI状态
       sidebarOpen: false,
       modalState: { isOpen: false, type: null },
       workSchedule: {
@@ -455,6 +469,242 @@ export const useAppStore = create<AppStore>()(
         await get().loadInitialData();
       },
 
+      // WebDAV 操作
+      setWebDAVConfig: (config) => set({ webdavConfig: config }),
+      
+      syncToWebDAV: async () => {
+        const state = get();
+        if (!state.webdavConfig) {
+          toast.error('请先配置 WebDAV');
+          return;
+        }
+        
+        set({ isSyncing: true });
+        try {
+          // 1. 同步配置 (Config)
+          const configData = {
+            workSchedule: state.workSchedule,
+            aiConfig: state.aiConfig,
+            templates: state.templates,
+            timestamp: Date.now()
+          };
+
+          await fetch('/api/webdav', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'put',
+              config: state.webdavConfig,
+              path: 'config.json',
+              data: configData
+            })
+          });
+
+          // 2. 同步任务 (按月分片)
+          // 如果 dirtyMonths 为空但从未同步过（或者为了保险），是否应该全量检查？
+          // 这里我们假设 dirtyMonths 是准确的。如果是初次同步，dirtyMonths 可能为空。
+          // 策略：如果 lastSyncTime 为 null，则视为全量同步，将所有任务的月份加入 dirtyMonths
+          let monthsToSync = new Set(state.dirtyMonths);
+          
+          if (!state.lastSyncTime) {
+            state.tasks.forEach(task => {
+              const month = format(new Date(task.startTime), 'yyyy-MM');
+              monthsToSync.add(month);
+            });
+          }
+
+          if (monthsToSync.size > 0) {
+            const uploadPromises = Array.from(monthsToSync).map(async (month) => {
+              const tasksInMonth = state.tasks.filter(task => 
+                format(new Date(task.startTime), 'yyyy-MM') === month
+              );
+              
+              // 即使 tasksInMonth 为空（说明该月任务都被删了），也应该上传空数组以覆盖云端
+              await fetch('/api/webdav', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'put',
+                  config: state.webdavConfig,
+                  path: `data/tasks_${month}.json`,
+                  data: { tasks: tasksInMonth, timestamp: Date.now() }
+                })
+              });
+            });
+
+            await Promise.all(uploadPromises);
+          }
+
+          set({ lastSyncTime: new Date(), dirtyMonths: [] });
+          toast.success(`同步成功 (配置 + ${monthsToSync.size} 个月度文件)`);
+        } catch (error) {
+          console.error('WebDAV Sync Error:', error);
+          toast.error('同步失败，请检查配置');
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+
+      syncFromWebDAV: async () => {
+        const state = get();
+        if (!state.webdavConfig) {
+          toast.error('请先配置 WebDAV');
+          return;
+        }
+
+        set({ isSyncing: true });
+        try {
+          // 1. 获取配置
+          const configRes = await fetch('/api/webdav', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'get',
+              config: state.webdavConfig,
+              path: 'config.json'
+            })
+          });
+
+          if (configRes.ok) {
+            const result = await configRes.json();
+            const remoteConfig = result.data;
+            if (remoteConfig) {
+              await db.importData({
+                aiConfig: remoteConfig.aiConfig,
+                workSchedule: remoteConfig.workSchedule,
+                templates: remoteConfig.templates
+              });
+              set({
+                workSchedule: remoteConfig.workSchedule || state.workSchedule,
+                aiConfig: remoteConfig.aiConfig || state.aiConfig,
+                templates: remoteConfig.templates || []
+              });
+            }
+          }
+
+          // 2. 获取任务文件列表
+          const listRes = await fetch('/api/webdav', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'listFiles',
+              config: state.webdavConfig
+            })
+          });
+
+          if (listRes.ok) {
+            const listResult = await listRes.json();
+            const files = listResult.data as Array<{ basename: string, lastmod: string, type: string }>;
+            
+            // 过滤出任务文件
+            const taskFiles = files.filter(f => f.basename.startsWith('tasks_') && f.basename.endsWith('.json'));
+            
+            // 决定哪些文件需要下载
+            // 如果本地 lastSyncTime 为空，下载所有。
+            // 否则，比较 lastmod 和 lastSyncTime
+            const filesToDownload = taskFiles.filter(f => {
+              if (!state.lastSyncTime) return true;
+              const remoteTime = new Date(f.lastmod).getTime();
+              const localTime = new Date(state.lastSyncTime).getTime();
+              // WebDAV 时间通常是 UTC，注意时区。但在比较时间戳时通常没问题。
+              // 放宽一点条件，如果相差不大可能也需要同步
+              return remoteTime > localTime;
+            });
+
+            if (filesToDownload.length > 0) {
+              const downloadPromises = filesToDownload.map(async (file) => {
+                const res = await fetch('/api/webdav', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'get',
+                    config: state.webdavConfig,
+                    path: `data/${file.basename}`
+                  })
+                });
+                
+                if (res.ok) {
+                   const json = await res.json();
+                   return { month: file.basename.replace('tasks_', '').replace('.json', ''), data: json.data };
+                }
+                return null;
+              });
+
+              const results = await Promise.all(downloadPromises);
+              
+              // 更新本地任务
+              // 策略：对于每个下载的月份，删除本地该月所有任务，替换为下载的任务
+              // 这样做最简单且不容易出错。
+              
+              const allCurrentTasks = [...state.tasks];
+              let hasUpdates = false;
+
+              for (const res of results) {
+                if (!res) continue;
+                const { month, data } = res;
+                const remoteTasks = data.tasks || [];
+                
+                // 移除本地该月任务
+                const otherTasks = allCurrentTasks.filter(t => 
+                  format(new Date(t.startTime), 'yyyy-MM') !== month
+                );
+                
+                // 添加远程任务
+                // 注意：这里只是内存更新，最后统一更新 DB
+                allCurrentTasks.length = 0; // Clear
+                allCurrentTasks.push(...otherTasks, ...remoteTasks);
+                hasUpdates = true;
+              }
+
+              if (hasUpdates) {
+                 // 更新数据库
+                 // 既然是 Sync From Cloud，我们假设 Cloud 是 source of truth for these months.
+                 // 为了保持一致性，最好是：
+                 // 1. 删除 DB 中涉及月份的所有任务
+                 // 2. 插入新任务
+                 // 或者简单点：全量覆盖 DB 的 tasks 表？不，那样会把没同步的月份也删了。
+                 // 必须按月处理。
+                 
+                 // 找出所有涉及的月份
+                 const monthsUpdated = results.filter(r => r).map(r => r!.month);
+                 
+                 // DB 操作比较麻烦，Dexie 没有直接按条件删除的方法（除了 where clause）
+                 // db.tasks.where('startTime').between(...) ? 
+                 // startTime 是 Date 对象。
+                 // 我们可以遍历 monthsUpdated，计算每个月的 start 和 end time，然后 deleteRange。
+                 
+                 for (const monthStr of monthsUpdated) {
+                    const [year, month] = monthStr.split('-').map(Number);
+                    const startOfMonth = new Date(year, month - 1, 1);
+                    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+                    
+                    // 删除该范围内的任务
+                    await db.tasks.where('startTime').between(startOfMonth, endOfMonth, true, true).delete();
+                 }
+                 
+                 // 插入新任务
+                 // 找出所有新任务
+                 const newTasksToAdd = allCurrentTasks.filter(t => monthsUpdated.includes(format(new Date(t.startTime), 'yyyy-MM')));
+                 await db.tasks.bulkPut(newTasksToAdd);
+
+                 set({ tasks: allCurrentTasks });
+              }
+              
+              toast.success(`已同步 ${filesToDownload.length} 个文件`);
+            } else {
+              toast.info('云端没有新数据');
+            }
+            
+            set({ lastSyncTime: new Date() });
+          }
+        } catch (error) {
+          console.error('WebDAV Sync Error:', error);
+          toast.error('同步失败，请检查配置');
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+
       // 任务操作
       addTask: async (task) => {
         try {
@@ -466,7 +716,10 @@ export const useAppStore = create<AppStore>()(
           };
           
           await db.addTask(newTask);
-          set(state => ({ tasks: [...state.tasks, newTask] }));
+          set(state => ({ 
+            tasks: [...state.tasks, newTask],
+            dirtyMonths: [...state.dirtyMonths, format(new Date(newTask.startTime), 'yyyy-MM')]
+          }));
         } catch (error) {
           console.error('【任务管理】添加任务失败:', error);
           throw error;
@@ -476,11 +729,22 @@ export const useAppStore = create<AppStore>()(
       updateTask: async (id, updates) => {
         try {
           await db.updateTask(id, updates);
-          set(state => ({
-            tasks: state.tasks.map(task => 
-              task.id === id ? { ...task, ...updates } : task
-            )
-          }));
+          set(state => {
+            const task = state.tasks.find(t => t.id === id);
+            const month = task ? format(new Date(task.startTime), 'yyyy-MM') : '';
+            // 如果修改了时间，可能涉及两个月份
+            const newMonth = updates.startTime ? format(new Date(updates.startTime), 'yyyy-MM') : month;
+            const dirty = new Set(state.dirtyMonths);
+            if (month) dirty.add(month);
+            if (newMonth) dirty.add(newMonth);
+            
+            return {
+              tasks: state.tasks.map(task => 
+                task.id === id ? { ...task, ...updates } : task
+              ),
+              dirtyMonths: Array.from(dirty)
+            };
+          });
         } catch (error) {
           console.error('【任务管理】更新任务失败:', error);
           throw error;
@@ -489,9 +753,15 @@ export const useAppStore = create<AppStore>()(
 
       deleteTask: async (id) => {
         try {
+          // 先获取任务以知道月份
+          const state = get();
+          const task = state.tasks.find(t => t.id === id);
+          const month = task ? format(new Date(task.startTime), 'yyyy-MM') : null;
+          
           await db.deleteTask(id);
           set(state => ({
-            tasks: state.tasks.filter(task => task.id !== id)
+            tasks: state.tasks.filter(task => task.id !== id),
+            dirtyMonths: month ? [...state.dirtyMonths, month] : state.dirtyMonths
           }));
         } catch (error) {
           console.error('【任务管理】删除任务失败:', error);
@@ -501,13 +771,19 @@ export const useAppStore = create<AppStore>()(
 
       moveTask: async (id, newStartTime, newEndTime) => {
         try {
+          const state = get();
+          const task = state.tasks.find(t => t.id === id);
+          const oldMonth = task ? format(new Date(task.startTime), 'yyyy-MM') : '';
+          const newMonth = format(new Date(newStartTime), 'yyyy-MM');
+          
           await db.updateTask(id, { startTime: newStartTime, endTime: newEndTime });
           set(state => ({
             tasks: state.tasks.map(task => 
               task.id === id 
                 ? { ...task, startTime: newStartTime, endTime: newEndTime }
                 : task
-            )
+            ),
+            dirtyMonths: [...state.dirtyMonths, oldMonth, newMonth].filter(Boolean)
           }));
         } catch (error) {
           console.error('【任务管理】移动任务失败:', error);
@@ -518,13 +794,23 @@ export const useAppStore = create<AppStore>()(
       batchUpdateTaskStatus: async (taskIds, status) => {
         try {
           await db.batchUpdateTaskStatus(taskIds, status);
-          set(state => ({
-            tasks: state.tasks.map(task => 
-              taskIds.includes(task.id) 
-                ? { ...task, status, completedAt: status === 'completed' ? new Date() : undefined }
-                : task
-            )
-          }));
+          set(state => {
+            const dirty = new Set(state.dirtyMonths);
+            state.tasks.forEach(task => {
+              if (taskIds.includes(task.id)) {
+                 dirty.add(format(new Date(task.startTime), 'yyyy-MM'));
+              }
+            });
+            
+            return {
+              tasks: state.tasks.map(task => 
+                taskIds.includes(task.id) 
+                  ? { ...task, status, completedAt: status === 'completed' ? new Date() : undefined }
+                  : task
+              ),
+              dirtyMonths: Array.from(dirty)
+            };
+          });
           toast.success(`批量更新${taskIds.length}个任务状态成功`);
         } catch (error) {
           console.error('【任务管理】批量更新任务状态失败:', error);

@@ -85,6 +85,15 @@ export interface AIConfig {
 }
 
 /**
+ * WebDAV配置
+ */
+export interface WebDAVConfig {
+  url: string;
+  username: string;
+  password?: string; // 可选，因为可能不持久化存储密码，或者加密存储
+}
+
+/**
  * 时间段配置
  */
 export interface TimeSlot {
@@ -185,29 +194,28 @@ export interface ModalState {
  * 应用状态数据结构
  */
 export interface AppState {
-  // 任务状态
   tasks: Task[];
   currentWeek: Date;
   selectedView: ViewType;
-  
-  // AI状态
+  selectedCategory: TaskCategory | 'all';
   aiConfig: AIConfig;
   isAIProcessing: boolean;
   
-  // UI状态
+  // WebDAV
+  webdavConfig: WebDAVConfig | null;
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  dirtyMonths: string[]; // YYYY-MM format, tracks months that need syncing
+  
+  // UI State
   sidebarOpen: boolean;
   modalState: ModalState;
-  taskModalOpen: boolean;
-  selectedCategory: TaskCategory | 'all';
   
-  // 工作作息
+  // New Features
   workSchedule: WorkSchedule;
-
-  // 数据分析
   analytics: AnalyticsData[];
-  
-  // 模板
   templates: Template[];
+  taskModalOpen: boolean;
 }
 
 /**

@@ -133,18 +133,26 @@ const AIConfig: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   模型选择
                 </label>
-                <select
-                  value={formData.model}
-                  defaultValue={models[1].value}
-                  onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900"
-                >
-                  {models.map(model => (
-                    <option key={model.value} value={model.value}>
-                      {model.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="model-options"
+                    value={formData.model}
+                    onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-gray-900"
+                    placeholder="输入或选择模型名称"
+                  />
+                  <datalist id="model-options">
+                    {models.map(model => (
+                      <option key={model.value} value={model.value}>
+                        {model.label}
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  支持自定义模型名称（如 deepseek-chat, claude-3-opus 等）
+                </p>
               </div>
               
               <button
@@ -301,7 +309,7 @@ const AIConfig: React.FC = () => {
             </h2>
             
             <div className="space-y-3 text-sm text-gray-600">
-              <p>• 硅基流动API：注册后获取API密钥，支持多种开源模型</p>
+              <p>• 智谱AI API：注册后获取API密钥，支持多种开源模型</p>
               <p>• 自然语言解析：输入"明天下午3点开项目会议，预计1小时"即可自动解析</p>
               <p>• 智能排程：AI会根据任务优先级、截止时间、预估时长自动安排</p>
               <p>• 健康提醒：会在任务安排中自动插入休息提醒</p>
