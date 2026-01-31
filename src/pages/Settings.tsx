@@ -5,7 +5,7 @@ import { useAppStore } from '../store';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode';
 
 /**
  * 设置页面
@@ -39,6 +39,8 @@ const Settings: React.FC = () => {
   const [showQR, setShowQR] = React.useState(false);
   const [showScanner, setShowScanner] = React.useState(false);
   const [isChecking, setIsChecking] = React.useState(false);
+  const [scanImageInputRef, setScanImageInputRef] = React.useState<HTMLInputElement | null>(null);
+  const scanFileRef = React.useRef<Html5Qrcode | null>(null);
 
   React.useEffect(() => {
     if (webdavConfig) {
@@ -50,45 +52,88 @@ const Settings: React.FC = () => {
     }
   }, [webdavConfig]);
 
+  const applyScannedConfig = React.useCallback((decodedText: string) => {
+    try {
+      const config = JSON.parse(decodedText);
+      if (config.url && config.username) {
+        setWebdavForm({
+          url: config.url,
+          username: config.username,
+          password: config.password || ''
+        });
+        toast.success('配置已扫描，请点击保存');
+        return true;
+      }
+      console.error('【QR扫描】配置结构无效:', config);
+      toast.error('无效的二维码配置：缺少 url 或 username');
+      return false;
+    } catch (e) {
+      console.error('【QR扫描】解析失败:', e);
+      toast.error('无法解析二维码：请确保扫描的是本应用生成的JSON配置');
+      return false;
+    }
+  }, [setWebdavForm]);
+
+  const handleScanImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      if (!scanFileRef.current) {
+        scanFileRef.current = new Html5Qrcode('reader-file');
+      }
+      const decodedText = await scanFileRef.current.scanFile(file, true);
+      const applied = applyScannedConfig(decodedText);
+      if (applied) {
+        setShowScanner(false);
+      }
+    } catch (error) {
+      console.error('【QR扫描】图片识别失败:', error);
+      toast.error('未识别到二维码，请更换清晰图片');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   // Scanner Effect
   React.useEffect(() => {
     if (showScanner) {
       const scanner = new Html5QrcodeScanner(
         "reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true, // 开启闪光灯支持
+          videoConstraints: {
+            facingMode: { ideal: "environment" } // 优先使用后置摄像头
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
+        },
         /* verbose= */ false
       );
       
       scanner.render((decodedText) => {
         console.log('【QR扫描】扫描内容:', decodedText);
-        try {
-          const config = JSON.parse(decodedText);
-          if (config.url && config.username) {
-            setWebdavForm({
-              url: config.url,
-              username: config.username,
-              password: config.password || ''
-            });
-            toast.success('配置已扫描，请点击保存');
-            scanner.clear();
+        const applied = applyScannedConfig(decodedText);
+        if (applied) {
+          scanner.clear().then(() => {
             setShowScanner(false);
-          } else {
-            console.error('【QR扫描】配置结构无效:', config);
-            toast.error('无效的二维码配置：缺少 url 或 username');
-          }
-        } catch (e) {
-          console.error('【QR扫描】解析失败:', e);
-          toast.error('无法解析二维码：请确保扫描的是本应用生成的JSON配置');
+          }).catch((err) => {
+            console.error('【QR扫描】停止扫描失败:', err);
+            setShowScanner(false);
+          });
         }
-      }, (error) => {
-        // console.warn(error);
+      }, () => {
+        // 扫描过程中的帧解析错误，忽略即可
       });
 
       return () => {
         scanner.clear().catch(console.error);
       };
     }
-  }, [showScanner]);
+  }, [showScanner, applyScannedConfig]);
 
   const handleSaveWebDAV = () => {
     if (!webdavForm.url || !webdavForm.username || !webdavForm.password) {
@@ -121,7 +166,7 @@ const Settings: React.FC = () => {
       } else {
         throw new Error('连接失败');
       }
-    } catch (error) {
+    } catch {
       toast.error('连接失败，请检查配置');
     } finally {
       setIsChecking(false);
@@ -129,7 +174,6 @@ const Settings: React.FC = () => {
   };
 
   const [holidayInput, setHolidayInput] = React.useState('');
-  const [fileInputRef, setFileInputRef] = React.useState<HTMLInputElement | null>(null);
 
   const handleSave = () => {
     updateWorkSchedule(formData);
@@ -626,7 +670,6 @@ const Settings: React.FC = () => {
                   <Upload className="w-5 h-5" />
                   <span>导入数据</span>
                   <input
-                    ref={setFileInputRef}
                     type="file"
                     accept=".json"
                     onChange={handleImportData}
@@ -665,8 +708,9 @@ const Settings: React.FC = () => {
             <div className="flex justify-center p-4 bg-white rounded-lg">
               <QRCodeSVG 
                 value={JSON.stringify(webdavForm)}
-                size={200}
-                level="M"
+                size={240}
+                level="H"
+                includeMargin
               />
             </div>
             <p className="text-sm text-gray-500 text-center mt-4">
@@ -688,6 +732,21 @@ const Settings: React.FC = () => {
           <div className="bg-white p-6 rounded-xl max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold mb-4 text-center text-gray-900">扫描二维码</h3>
             <div id="reader" className="w-full h-64 bg-black rounded-lg overflow-hidden"></div>
+            <div id="reader-file" className="hidden"></div>
+            <button
+              onClick={() => scanImageInputRef?.click()}
+              className="w-full mt-3 py-2 bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            >
+              从相册识别
+            </button>
+            <input
+              ref={setScanImageInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleScanImage}
+              className="hidden"
+            />
             <button
               onClick={() => setShowScanner(false)}
               className="w-full mt-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors"
