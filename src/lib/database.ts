@@ -212,8 +212,28 @@ export class AlignDatabase extends Dexie {
    * 批量更新任务状态
    */
   async batchUpdateTaskStatus(taskIds: string[], status: TaskStatus): Promise<void> {
-    for (const taskId of taskIds) {
-      await this.updateTask(taskId, { status, updatedAt: new Date() });
+    try {
+      await this.tasks.where('id').anyOf(taskIds).modify({ status, updatedAt: new Date() });
+    } catch (error) {
+      console.error('【数据存储】批量更新任务状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 批量删除任务
+   */
+  async batchDeleteTasks(ids: string[]): Promise<void> {
+    try {
+      await this.transaction('rw', this.tasks, async () => {
+        // 删除子任务
+        await this.tasks.where('parentId').anyOf(ids).delete();
+        // 删除主任务
+        await this.tasks.bulkDelete(ids);
+      });
+    } catch (error) {
+      console.error('【数据存储】批量删除任务失败:', error);
+      throw error;
     }
   }
 

@@ -33,6 +33,7 @@ interface AppStore extends AppState {
   deleteTask: (id: string) => Promise<void>;
   moveTask: (id: string, newStartTime: Date, newEndTime: Date) => Promise<void>;
   batchUpdateTaskStatus: (taskIds: string[], status: Task['status']) => Promise<void>;
+  batchDeleteTasks: (ids: string[]) => Promise<void>;
   addSubtask: (taskId: string, title: string) => Promise<void>;
   updateSubtask: (taskId: string, subtaskId: string, updates: Partial<Task['subtasks'][0]>) => Promise<void>;
   deleteSubtask: (taskId: string, subtaskId: string) => Promise<void>;
@@ -58,6 +59,7 @@ interface AppStore extends AppState {
   updateAIConfig: (config: Partial<AIConfig>) => Promise<void>;
   toggleHealthReminders: (reminderId: 'water' | 'stand' | 'eye') => void;
   parseHolidays: (input: string) => Promise<{ name: string; startDate: string; endDate: string; isWorkDay: boolean }[]>;
+  generateTaskReport: (range: string, tasks: Task[]) => Promise<string>;
   
   // 工作作息操作
   updateWorkSchedule: (schedule: Partial<WorkSchedule>) => Promise<void>;
@@ -207,6 +209,10 @@ class AIService {
               return {
                 parsedHolidays: parsed.holidays || (Array.isArray(parsed) ? parsed : [])
               };
+            case 'report':
+              return {
+                report: content
+              };
             default:
               return {};
           }
@@ -223,6 +229,9 @@ class AIService {
         if (feature === 'suggest') {
            return { dailySuggestion: content };
         }
+        if (feature === 'report') {
+           return { report: content };
+        }
       } catch (e) {
         // ignore
       }
@@ -230,6 +239,9 @@ class AIService {
       // 如果不是JSON，根据功能类型处理
       if (feature === 'suggest') {
         return { dailySuggestion: content };
+      }
+      if (feature === 'report') {
+        return { report: content };
       }
       
       return {};
@@ -492,6 +504,43 @@ export const useAppStore = create<AppStore>()(
           console.error('【AI服务】解析假期失败:', error);
           toast.error('AI解析假期失败');
           return [];
+        } finally {
+          set({ isAIProcessing: false });
+        }
+      },
+
+      generateTaskReport: async (range, tasks) => {
+        set({ isAIProcessing: true });
+        try {
+          const prompt = `请根据以下${range}的任务数据，生成一份详细的任务总结报告（Markdown格式）。
+          
+          任务列表：
+          ${tasks.map(t => `- [${t.status === 'completed' ? '已完成' : '未完成'}] ${t.title} (优先级: ${t.priority}, 耗时: ${t.actualDuration || 0}/${t.estimatedDuration}分)`).join('\n')}
+          
+          请包含以下内容：
+          1. 总体概况（完成率、总耗时等）
+          2. 重点完成事项
+          3. 未完成/延期事项及原因分析（基于可用信息推测）
+          4. 时间分配分析
+          5. 下阶段建议
+          
+          请直接返回 Markdown 内容。
+          `;
+
+          const response = await aiService.sendRequest({
+            prompt,
+            feature: 'report'
+          });
+
+          if (response.success && response.data?.report) {
+            return response.data.report;
+          } else {
+            throw new Error(response.error || '生成报告失败');
+          }
+        } catch (error) {
+          console.error('生成报告错误:', error);
+          toast.error('生成报告失败');
+          throw error;
         } finally {
           set({ isAIProcessing: false });
         }
@@ -869,10 +918,27 @@ export const useAppStore = create<AppStore>()(
               dirtyMonths: Array.from(dirty)
             };
           });
-          toast.success(`批量更新${taskIds.length}个任务状态成功`);
         } catch (error) {
           console.error('【任务管理】批量更新任务状态失败:', error);
-          toast.error('批量更新任务状态失败');
+          throw error;
+        }
+      },
+
+      batchDeleteTasks: async (ids) => {
+        try {
+          const state = get();
+          const tasks = state.tasks.filter(t => ids.includes(t.id));
+          const months = new Set(tasks.map(t => format(new Date(t.startTime), 'yyyy-MM')));
+          
+          await db.batchDeleteTasks(ids);
+          
+          set(state => ({
+            tasks: state.tasks.filter(task => !ids.includes(task.id)),
+            dirtyMonths: [...state.dirtyMonths, ...months]
+          }));
+        } catch (error) {
+          console.error('【任务管理】批量删除任务失败:', error);
+          throw error;
         }
       },
 

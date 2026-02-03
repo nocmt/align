@@ -28,6 +28,9 @@ interface TaskCardProps {
   compact?: boolean;
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
+  onToggleSelect?: (e: React.MouseEvent) => void;
 }
 
 /**
@@ -38,9 +41,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
   style, 
   compact = false,
   onEdit,
-  onDelete 
+  onDelete,
+  isSelected = false,
+  isSelectionMode = false,
+  onToggleSelect
 }) => {
-  const { updateTask, openModal } = useAppStore();
+  const { updateTask, deleteTask, openModal } = useAppStore();
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -102,13 +108,23 @@ const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
+  // 处理点击
+  const handleClick = (e: React.MouseEvent) => {
+    if (isSelectionMode && onToggleSelect) {
+      e.stopPropagation();
+      onToggleSelect(e);
+    } else {
+      handleEdit();
+    }
+  };
+
   // 处理删除
   const handleDelete = async () => {
     if (confirm('确定要删除这个任务吗？')) {
       if (onDelete) {
         onDelete(task.id);
       } else {
-        await updateTask(task.id, { status: 'cancelled' });
+        await deleteTask(task.id);
       }
     }
   };
@@ -215,14 +231,31 @@ const TaskCard: React.FC<TaskCardProps> = ({
       ref={drag}
       className={`relative p-3 rounded-lg border-2 cursor-move transition-all duration-200 ${
         isDragging ? 'opacity-50 scale-95' : 'opacity-100 hover:shadow-lg'
-      } bg-white ${priorityConfig.borderColor}`}
+      } ${isSelected ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500' : `bg-white ${priorityConfig.borderColor}`}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={handleEdit}
+      onClick={handleClick}
     >
+      {/* 选择按钮 - 仅在 selectionMode 为 true 时显示 */}
+      {isSelectionMode && onToggleSelect && (
+        <button 
+          className="absolute top-3 left-3 z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(e);
+          }}
+        >
+          {isSelected ? (
+            <CheckCircle className="w-5 h-5 text-blue-600 bg-white rounded-full" />
+          ) : (
+            <div className="w-5 h-5 rounded-full border-2 border-gray-300 bg-white hover:border-blue-500 transition-colors" />
+          )}
+        </button>
+      )}
+
       {/* 任务标题 */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1 min-w-0">
+      <div className={`flex items-start justify-between mb-2 ${isSelectionMode ? 'pl-8' : ''}`}>
+        <div className="flex-1 min-w-0 pr-6">
           <h3 className="font-medium text-gray-900 truncate">
             {task.title}
           </h3>

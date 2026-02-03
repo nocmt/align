@@ -172,7 +172,7 @@ export interface AIRequest {
     schedule: WorkSchedule;
     history: AnalyticsData[];
   };
-  feature: 'parse' | 'estimate' | 'schedule' | 'suggest' | 'analyze' | 'parse_holidays';
+  feature: 'parse' | 'estimate' | 'schedule' | 'suggest' | 'analyze' | 'parse_holidays' | 'report';
 }
 
 /**
@@ -187,6 +187,7 @@ export interface AIResponse {
     dailySuggestion?: string;
     progressAnalysis?: AnalyticsData;
     parsedHolidays?: { name: string; startDate: string; endDate: string; isWorkDay: boolean }[];
+    report?: string;
   };
   error?: string;
 }
@@ -196,7 +197,7 @@ export interface AIResponse {
  */
 export interface ModalState {
   isOpen: boolean;
-  type: 'task' | 'create_task' | 'ai-config' | 'settings' | null;
+  type: 'task' | 'create_task' | 'ai-config' | 'settings' | 'ai-report' | null;
   data?: any;
 }
 
@@ -235,9 +236,9 @@ export interface AppState {
 export const PRIORITY_CONFIG = {
   'urgent-important': {
     label: '紧急+重要',
-    color: 'border-black bg-gray-900',
-    textColor: 'text-white',
-    borderColor: 'border-black'
+    color: 'border-red-200 bg-red-50',
+    textColor: 'text-red-900',
+    borderColor: 'border-red-500'
   },
   'urgent-unimportant': {
     label: '紧急+不重要',
