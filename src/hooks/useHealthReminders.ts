@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store';
 import { toast } from 'sonner';
+import { WorkSchedule } from '@/types';
 
 const REMINDER_KEYS = {
   water: 'last_reminder_water',
@@ -9,7 +10,7 @@ const REMINDER_KEYS = {
 };
 
 export const useHealthReminders = () => {
-  const { aiConfig } = useAppStore();
+  const { aiConfig, workSchedule } = useAppStore();
   const { healthReminders } = aiConfig;
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -36,8 +37,78 @@ export const useHealthReminders = () => {
     }
   };
 
+  // Helper to check if it is work time
+  const isWorkTime = (now: number, schedule: WorkSchedule): boolean => {
+    if (!schedule) return true; // Fail safe
+
+    const date = new Date(now);
+    const dayOfWeek = date.getDay(); // 0 (Sun) - 6 (Sat)
+    
+    // Get local date string YYYY-MM-DD for holiday check
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    // Check holidays
+    const holiday = schedule.holidays?.find(h => 
+      todayStr >= h.startDate && todayStr <= h.endDate
+    );
+
+    let isWorkDay = false;
+    if (holiday) {
+      isWorkDay = holiday.isWorkDay;
+    } else {
+      isWorkDay = schedule.workDays.includes(dayOfWeek);
+    }
+
+    if (!isWorkDay) return false;
+
+    // Check time
+    const currentMinutes = date.getHours() * 60 + date.getMinutes();
+    
+    const parseTime = (timeStr: string) => {
+      if (!timeStr) return 0;
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const workStart = parseTime(schedule.workStartTime);
+    const workEnd = parseTime(schedule.workEndTime);
+    const lunchStart = parseTime(schedule.lunchStartTime);
+    const lunchEnd = parseTime(schedule.lunchEndTime);
+
+    // Must be within work hours
+    if (currentMinutes < workStart || currentMinutes > workEnd) return false;
+
+    // Must NOT be within lunch break (if lunch time is configured)
+    if (lunchStart > 0 && lunchEnd > 0 && currentMinutes >= lunchStart && currentMinutes < lunchEnd) return false;
+
+    // Check excluded time slots
+    if (schedule.excludedTimeSlots && schedule.excludedTimeSlots.length > 0) {
+      for (const slot of schedule.excludedTimeSlots) {
+        // If slot has date, check if matches today
+        if (slot.date && slot.date !== todayStr) continue;
+        
+        const slotStart = parseTime(slot.startTime);
+        const slotEnd = parseTime(slot.endTime);
+        
+        if (currentMinutes >= slotStart && currentMinutes < slotEnd) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
   const checkReminders = () => {
     const now = Date.now();
+
+    // Check if work time
+    if (!isWorkTime(now, workSchedule)) {
+      return;
+    }
 
     // Helper to check and trigger
     const checkOne = (
@@ -110,5 +181,5 @@ export const useHealthReminders = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [healthReminders]); // Re-run if config changes
+  }, [healthReminders, workSchedule]); // Re-run if config or schedule changes
 };
