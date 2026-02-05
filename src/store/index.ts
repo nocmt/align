@@ -269,7 +269,7 @@ class AIService {
       startTime: parsed.startTime ? new Date(parsed.startTime) : undefined,
       endTime: parsed.endTime ? new Date(parsed.endTime) : undefined,
       estimatedDuration: parsed.estimatedDuration ? Number(parsed.estimatedDuration) : undefined,
-      category: this.validateCategory(parsed.category),
+      category: parsed.category ? this.validateCategory(parsed.category) : undefined,
       priority: this.validatePriority(parsed.priority),
       subtasks
     };
@@ -995,23 +995,13 @@ export const useAppStore = create<AppStore>()(
 输入："${processedInput}"
 当前时间：${todayStr}
 
-请遵循以下规则：
-1. description 字段 = 保留关键信息 精简后的输入原文（请保留上述预处理后的具体日期）
-2. 如果输入中包含 "\n-" 符号列表，请将其解析为 subtasks。
-
 请返回JSON格式：
 {
   "title": "任务标题",
-  "description": "格式化后的描述",
   "startTime": "开始时间（YYYY-MM-DD HH:mm格式）",
   "endTime": "结束时间（YYYY-MM-DD HH:mm格式）",
   "estimatedDuration": "预估时长（分钟）",
-  "category": "任务类别（work/study/health/life/other）",
-  "priority": "优先级（urgent-important/urgent-unimportant/important-not-urgent/not-important-not-urgent）",
-  "subtasks": [
-    { "title": "子任务1" },
-    { "title": "子任务2" }
-  ]
+  "priority": "优先级（urgent-important/urgent-unimportant/important-not-urgent/not-important-not-urgent）"
 }`;
 
           const response = await aiService.sendRequest({
