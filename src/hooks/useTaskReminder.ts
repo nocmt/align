@@ -49,12 +49,14 @@ export const useTaskReminder = () => {
 };
 
 const sendNotification = (title: string, body: string) => {
-  // Always show toast inside the app
-  toast.info(title, { 
-    description: body,
-    duration: 5000,
-    icon: '⏰'
-  });
+  // Only show toast if document is visible to avoid accumulation
+  if (!document.hidden) {
+    toast.info(title, { 
+      description: body,
+      duration: 5000,
+      icon: '⏰'
+    });
+  }
 
   // Try to send system notification
   if ('Notification' in window && Notification.permission === 'granted') {

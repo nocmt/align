@@ -16,12 +16,14 @@ export const useHealthReminders = () => {
 
   // Helper to send notification
   const sendNotification = (title: string, body: string, icon: string) => {
-    // Toast
-    toast.info(title, {
-      description: body,
-      duration: 10000, // Show for 10s
-      icon: icon
-    });
+    // Only show toast if document is visible
+    if (!document.hidden) {
+      toast.info(title, {
+        description: body,
+        duration: 10000, // Show for 10s
+        icon: icon
+      });
+    }
 
     // System Notification
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -131,8 +133,16 @@ export const useHealthReminders = () => {
       const lastTime = parseInt(lastTimeStr, 10);
       const intervalMs = intervalMinutes * 60 * 1000;
 
+      // If time difference is too large (e.g., > 2 intervals or > 1 hour), 
+      // it implies the app was closed or inactive for a long time.
+      // In this case, we reset the timer to avoid flooding notifications immediately.
+      // But we still update the timestamp.
+      const isLongAbsence = (now - lastTime) > (Math.max(intervalMs * 2, 60 * 60 * 1000));
+
       if (now - lastTime >= intervalMs) {
-        sendNotification(title, body, icon);
+        if (!isLongAbsence) {
+          sendNotification(title, body, icon);
+        }
         localStorage.setItem(key, now.toString());
       }
     };

@@ -39,11 +39,11 @@ const Sidebar: React.FC = () => {
   ];
 
   const categoryFilters = [
-    { id: 'all', label: '全部任务', count: tasks.length },
-    { id: 'work', label: '工作任务', count: tasks.filter(t => t.category === 'work').length },
-    { id: 'study', label: '学习任务', count: tasks.filter(t => t.category === 'study').length },
-    { id: 'health', label: '健康任务', count: tasks.filter(t => t.category === 'health').length },
-    { id: 'life', label: '生活任务', count: tasks.filter(t => t.category === 'life').length }
+    { id: 'all', label: '全部任务', count: tasks.filter(t => t.status !== 'completed' && t.status !== 'cancelled').length },
+    { id: 'work', label: '工作任务', count: tasks.filter(t => t.category === 'work' && t.status !== 'completed' && t.status !== 'cancelled').length },
+    { id: 'study', label: '学习任务', count: tasks.filter(t => t.category === 'study' && t.status !== 'completed' && t.status !== 'cancelled').length },
+    { id: 'health', label: '健康任务', count: tasks.filter(t => t.category === 'health' && t.status !== 'completed' && t.status !== 'cancelled').length },
+    { id: 'life', label: '生活任务', count: tasks.filter(t => t.category === 'life' && t.status !== 'completed' && t.status !== 'cancelled').length }
   ];
 
   const healthReminders = [
